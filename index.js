@@ -38,7 +38,7 @@ app.post('/app', (req, res) => {
       // New session
       db.run(`INSERT INTO Sessions (sessionID, phoneNumber, userInput) VALUES (?, ?, ?)`, [sessionId, phoneNumber, text]);
       return res.send(
-        `CON Welcome / Murakaza neza\nSelect Language / Hitamo ururimi:\n1. English\n2. Kinyarwanda`
+        `CON Welcome / Murakaza neza\nSelect Language / Hitamo ururimi:\n1. English\n2. Kinyarwanda\n3. Exit / Sohoka`
       );
     }
 
@@ -46,10 +46,12 @@ app.post('/app', (req, res) => {
       const choice = input[0];
       if (choice === '1') {
         db.run(`UPDATE Sessions SET language = 'EN' WHERE sessionID = ?`, [sessionId]);
-        response = `CON Main Menu:\n1. View Cars\n2. Buy Car`;
+        response = `CON Main Menu:\n1. View Cars\n2. Buy Car\n3. Exit`;
       } else if (choice === '2') {
         db.run(`UPDATE Sessions SET language = 'RW' WHERE sessionID = ?`, [sessionId]);
-        response = `CON Menyu Nyamukuru:\n1. Reba Imodoka\n2. Gura Imodoka`;
+        response = `CON Menyu Nyamukuru:\n1. Reba Imodoka\n2. Gura Imodoka\n3. Sohoka`;
+      } else if (choice === '3') {
+        response = 'END Thank you for using our service!';
       } else {
         response = 'END Invalid choice.';
       }
@@ -59,19 +61,19 @@ app.post('/app', (req, res) => {
       const lang = session.language;
       const option = input[1];
 
-      if (lang === 'EN') {
+      if (option === '3') {
+        response = lang === 'EN' ? 'END Thank you. Goodbye!' : 'END Murakoze. Murabeho!';
+      } else if (lang === 'EN') {
         if (option === '1') {
-          response = `CON Choose a Car:\n1. Toyota\n2. BMW`;
+          response = `CON Choose a Car:\n1. Toyota\n2. BMW\n3. Exit`;
         } else if (option === '2') {
           response = 'END Purchase option coming soon.';
         } else {
           response = 'END Invalid option.';
         }
-      }
-
-      if (lang === 'RW') {
+      } else if (lang === 'RW') {
         if (option === '1') {
-          response = `CON Hitamo Imodoka:\n1. Toyota\n2. BMW`;
+          response = `CON Hitamo Imodoka:\n1. Toyota\n2. BMW\n3. Sohoka`;
         } else if (option === '2') {
           response = 'END Igikorwa cyo kugura kiraza vuba.';
         } else {
@@ -83,8 +85,13 @@ app.post('/app', (req, res) => {
     else if (input.length === 3) {
       const carChoice = input[2];
       const lang = session.language;
-      let car = '';
 
+      if (carChoice === '3') {
+        response = lang === 'EN' ? 'END Thank you. Goodbye!' : 'END Murakoze. Murabeho!';
+        return res.send(response);
+      }
+
+      let car = '';
       if (carChoice === '1') car = 'Toyota';
       else if (carChoice === '2') car = 'BMW';
       else return res.send('END Invalid selection.');
