@@ -1,7 +1,7 @@
 app.post('/app', (req, res) => {
   const { sessionId, phoneNumber, text } = req.body;
   const input = text.split('*');
-
+const app = express();
   db.get(`SELECT * FROM Sessions WHERE sessionID = ?`, [sessionId], (err, session) => {
     if (err) return res.send('END System error. Try again.');
 
