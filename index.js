@@ -1,30 +1,3 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const sqlite3 = require('sqlite3').verbose();
-
-const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
-
-// Connect to SQLite database
-const db = new sqlite3.Database('./ussd.db');
-
-// Create tables if not exist
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS Sessions (
-    sessionID TEXT PRIMARY KEY,
-    phoneNumber TEXT,
-    userInput TEXT,
-    language TEXT
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS Transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    phoneNumber TEXT,
-    action TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-});
-
 app.post('/app', (req, res) => {
   const { sessionId, phoneNumber, text } = req.body;
   const input = text.split('*');
@@ -35,12 +8,13 @@ app.post('/app', (req, res) => {
     let response = '';
 
     if (!session) {
-      // New session
       db.run(`INSERT INTO Sessions (sessionID, phoneNumber, userInput) VALUES (?, ?, ?)`, [sessionId, phoneNumber, text]);
       return res.send(
         `CON Welcome / Murakaza neza\nSelect Language / Hitamo ururimi:\n1. English\n2. Kinyarwanda\n3. Exit / Sohoka`
       );
     }
+
+    const lang = session.language;
 
     if (input.length === 1) {
       const choice = input[0];
@@ -58,48 +32,59 @@ app.post('/app', (req, res) => {
     }
 
     else if (input.length === 2) {
-      const lang = session.language;
       const option = input[1];
 
       if (option === '3') {
         response = lang === 'EN' ? 'END Thank you. Goodbye!' : 'END Murakoze. Murabeho!';
-      } else if (lang === 'EN') {
-        if (option === '1') {
-          response = `CON Choose a Car:\n1. Toyota\n2. BMW\n3. Exit`;
-        } else if (option === '2') {
-          response = 'END Purchase option coming soon.';
-        } else {
-          response = 'END Invalid option.';
-        }
-      } else if (lang === 'RW') {
-        if (option === '1') {
-          response = `CON Hitamo Imodoka:\n1. Toyota\n2. BMW\n3. Sohoka`;
-        } else if (option === '2') {
-          response = 'END Igikorwa cyo kugura kiraza vuba.';
-        } else {
-          response = 'END Icyo wahisemo si cyo.';
-        }
+      } else if (option === '1') {
+        response = lang === 'EN'
+          ? `CON Choose a Car to View:\n1. Toyota\n2. BMW\n3. Mercedes\n4. Nissan\n5. Audi\n6. Exit`
+          : `CON Hitamo Imodoka yo Kureba:\n1. Toyota\n2. BMW\n3. Mercedes\n4. Nissan\n5. Audi\n6. Sohoka`;
+      } else if (option === '2') {
+        response = lang === 'EN'
+          ? `CON Choose a Car to Buy:\n1. Toyota\n2. BMW\n3. Mercedes\n4. Nissan\n5. Audi\n6. Exit`
+          : `CON Hitamo Imodoka yo Kugura:\n1. Toyota\n2. BMW\n3. Mercedes\n4. Nissan\n5. Audi\n6. Sohoka`;
+      } else {
+        response = 'END Invalid option.';
       }
     }
 
     else if (input.length === 3) {
+      const mainOption = input[1];
       const carChoice = input[2];
-      const lang = session.language;
 
-      if (carChoice === '3') {
+      if (carChoice === '6') {
         response = lang === 'EN' ? 'END Thank you. Goodbye!' : 'END Murakoze. Murabeho!';
         return res.send(response);
       }
 
-      let car = '';
-      if (carChoice === '1') car = 'Toyota';
-      else if (carChoice === '2') car = 'BMW';
-      else return res.send('END Invalid selection.');
+      const cars = {
+        '1': 'Toyota',
+        '2': 'BMW',
+        '3': 'Mercedes',
+        '4': 'Nissan',
+        '5': 'Audi'
+      };
 
-      db.run(`INSERT INTO Transactions (phoneNumber, action) VALUES (?, ?)`, [phoneNumber, `Selected ${car}`]);
+      const selectedCar = cars[carChoice];
 
-      if (lang === 'EN') response = `END You selected ${car}. Thank you!`;
-      else response = `END Wahisemo ${car}. Murakoze!`;
+      if (!selectedCar) return res.send('END Invalid car selection.');
+
+      const action = mainOption === '1' ? `Viewed ${selectedCar}` : `Bought ${selectedCar}`;
+
+      db.run(`INSERT INTO Transactions (phoneNumber, action) VALUES (?, ?)`, [phoneNumber, action]);
+
+      if (mainOption === '1') {
+        response = lang === 'EN'
+          ? `END You viewed ${selectedCar}.`
+          : `END Wabonye ${selectedCar}.`;
+      } else if (mainOption === '2') {
+        response = lang === 'EN'
+          ? `END You bought ${selectedCar}. Thank you!`
+          : `END Waguze ${selectedCar}. Murakoze!`;
+      } else {
+        response = 'END Invalid selection.';
+      }
     }
 
     else {
@@ -109,9 +94,4 @@ app.post('/app', (req, res) => {
     res.set('Content-Type', 'text/plain');
     res.send(response);
   });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`USSD app running on port ${PORT}`);
 });
